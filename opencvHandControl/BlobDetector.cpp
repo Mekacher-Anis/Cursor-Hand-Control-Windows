@@ -165,7 +165,7 @@ void BlobDetector::DrawTriangle(cv::Mat & img, const std::vector<std::pair<cv::K
 
 bool BlobDetector::hasDesiredColor(const cv::Vec3b& pixel)
 {
-	return ((pixel[0] >= H - HUETHRESHOLD) && (pixel[0] <= H + HUETHRESHOLD) && (pixel[1] >= 25 && pixel[1] <= 180) && (pixel[2] >= S - 30));
+	return ((pixel[0] >= H - HUETHRESHOLD) && (pixel[0] <= H + HUETHRESHOLD) && (pixel[1] >= 25 && pixel[1] <= 235) && (pixel[2] >= S - 30));
 }
 
 
