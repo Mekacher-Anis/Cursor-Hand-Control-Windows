@@ -32,7 +32,7 @@ std::vector<std::pair<cv::KeyPoint, int> > BlobDetector::detect(cv::Mat& img) {
 			if (hasDesiredColor(pixel)) {
 				//std::printf("Found pixel at (%d , %d)\n", x, y);
 				add2Blob(x, y, newBlobs); //add pixel if it has the same color
-				pixel[0] = pixel[1] = pixel[2] = 255;
+				pixel[0] = pixel[1] = pixel[2] = 0;
 			}
 		}
 	}
@@ -184,6 +184,6 @@ int BlobDetector::B = -1000; //the blue value of the chosen color
 float BlobDetector::H = -1000; //the hue value of the chosen color
 float BlobDetector::L = -1000; // NOT REALLY NEEDED the lightness value of the chosen color
 float BlobDetector::S = -1000; // NOT REALLY NEEDED the saturation value of the chosen color
-int BlobDetector::HUETHRESHOLD = 10;
+int BlobDetector::HUETHRESHOLD = 15;
 
 std::vector<Blob> BlobDetector::oldBlobs;
