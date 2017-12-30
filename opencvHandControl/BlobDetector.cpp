@@ -36,20 +36,22 @@ std::vector<std::pair<cv::KeyPoint, int> > BlobDetector::detect(cv::Mat& img) {
 			}
 		}
 	}
+	std::printf("found %d blobs\n", newBlobs.size());
 	cleanBlobs(newBlobs); //remove any small blobs
 	syncBlobs(newBlobs); //sync the old blobs with the new blobs
 	Blob::reset(); //resets the counter of blobs
-	//std::printf("found %d blobs\n", newBlobs.size());
-	//convert blobs to keypoints
-	for each (Blob blob in newBlobs) {
-		points.push_back(std::make_pair(*(new cv::KeyPoint(blob.centerX, blob.centerY, MAXDISTTHRESHOLD / 75)), blob.getId()));
-	}
-	//only sync the old blobs if the new detected blobs are more than 3
+
 	if (points.size() >= 3) {
+		//convert blobs to keypoints
+		for each (Blob blob in newBlobs) {
+			points.push_back(std::make_pair(*(new cv::KeyPoint(blob.centerX, blob.centerY, MAXDISTTHRESHOLD / 75)), blob.getId()));
+		}
+		//only sync the old blobs if the new detected blobs are more than 3
+
 		DrawTriangle(img, points);
 		oldBlobs = std::move(newBlobs);
 	}
-	
+
 	return points;
 }
 
@@ -60,7 +62,7 @@ int BlobDetector::colorDif(const cv::Vec3b & pixel)
 	return abs((pixel[0] - B)*(pixel[0] - B) + (pixel[1] - G)*(pixel[1] - G) + (pixel[2] - R)*(pixel[2] - R));
 }
 
-void BlobDetector::convertPixel2HLS(cv::Vec3b & pixel,const cv::Mat& img)
+void BlobDetector::convertPixel2HLS(cv::Vec3b & pixel, const cv::Mat& img)
 {
 	cv::Vec3b pixelImg[1][1] = { {pixel} };
 	cv::Mat newImg(1, 1, img.type(), pixelImg);
@@ -116,7 +118,7 @@ void BlobDetector::add2Blob(int x, int y, std::vector<Blob>& blobs) {
 		}
 	}
 	//if there are no blobs or the pixel isn't part of any blob create new one
-	if (blobs.size() >= 3) return;
+	//if (blobs.size() >= 3) return;
 	Blob newBlob(x, y);
 	newBlob.addXY(x, y);
 	blobs.push_back(newBlob);
@@ -126,11 +128,11 @@ void BlobDetector::add2Blob(int x, int y, std::vector<Blob>& blobs) {
 void BlobDetector::syncBlobs(std::vector<Blob>& blobs)
 {
 	//std::printf("num of old blobs = %d num of new blobs = %d\n", oldBlobs.size(), blobs.size());
-	if (oldBlobs.size() >= 3 && blobs.size()>=3) {
+	if (oldBlobs.size() >= 3 && blobs.size() >= 3) {
 		for (std::vector<Blob>::iterator blob = blobs.begin(); blob != blobs.end(); ++blob) {
 			std::vector<Blob>::iterator selected;
 			int bestDist = 100000000;
-			for(std::vector<Blob>::iterator oldBlob = oldBlobs.begin(); oldBlob != oldBlobs.end(); ++oldBlob)
+			for (std::vector<Blob>::iterator oldBlob = oldBlobs.begin(); oldBlob != oldBlobs.end(); ++oldBlob)
 			{
 				int dist = pixelDist(oldBlob->centerX, oldBlob->centerY, blob->centerX, blob->centerY);
 				if (dist < bestDist) {
@@ -148,10 +150,19 @@ void BlobDetector::syncBlobs(std::vector<Blob>& blobs)
 
 void BlobDetector::cleanBlobs(std::vector<Blob>& blobs)
 {
-	for (std::vector<Blob>::iterator pt = blobs.begin(); pt != blobs.end();)
+	//clean any blobs that have less than requiered num of points
+	/*for (std::vector<Blob>::iterator pt = blobs.begin(); pt != blobs.end();)
 		if (pt->getNum() < MINPONTSOFBLOB)
 			pt = blobs.erase(pt);
-		else ++pt;
+		else ++pt;*/
+
+		//delete the blob with least num of pixels untill u have only three
+	if (blobs.size() > 3) {
+		//sort the array so that the smallest elements will be at the end
+		std::sort(blobs.begin(), blobs.end(), [](const Blob& a, const Blob& b) {return a.getNum() > b.getNum(); });
+		//delete all but the first 3 blobs
+		blobs.erase(blobs.begin() + 3, blobs.end());
+	}
 }
 
 //draws trianle for the detected blobs
@@ -160,12 +171,12 @@ void BlobDetector::DrawTriangle(cv::Mat & img, const std::vector<std::pair<cv::K
 	cv::Point pt[3] = { blobs[0].first.pt,blobs[1].first.pt, blobs[2].first.pt };
 	cv::fillConvexPoly(img, pt, 3, cv::Scalar(0, 150, 0));
 	for each (std::pair<cv::KeyPoint, int> blob in blobs)
-		cv::putText(img, std::to_string(blob.second), blob.first.pt, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(50, 255, 120),5);
+		cv::putText(img, std::to_string(blob.second), blob.first.pt, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(50, 255, 120), 5);
 }
 
 bool BlobDetector::hasDesiredColor(const cv::Vec3b& pixel)
 {
-	return ((pixel[0] >= H - HUETHRESHOLD) && (pixel[0] <= H + HUETHRESHOLD) && (pixel[1] >= 25 && pixel[1] <= 235) && (pixel[2] >= S - 30));
+	return ((pixel[0] >= H - HUETHRESHOLD) && (pixel[0] <= H + HUETHRESHOLD) && (pixel[1] >= 10 && pixel[1] <= 250) && (pixel[2] >= S - 50));
 }
 
 
