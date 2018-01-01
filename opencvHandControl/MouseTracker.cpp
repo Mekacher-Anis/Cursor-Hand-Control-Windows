@@ -17,13 +17,13 @@ bool MouseTracker::syncMousePos(const std::vector<std::pair<cv::KeyPoint, int> >
 	//if it dtects 3 fingers sync mouse position
 	if (points.size() >= 3) {
 		//check if there's is click
-		cv::KeyPoint thumb = std::find_if(points.begin(), points.end(), [](const std::pair<cv::KeyPoint, int>& pt) { return pt.second == 0; })->first;
+		/*cv::KeyPoint thumb = std::find_if(points.begin(), points.end(), [](const std::pair<cv::KeyPoint, int>& pt) { return pt.second == 0; })->first;
 		cv::KeyPoint index = std::find_if(points.begin(), points.end(), [](const std::pair<cv::KeyPoint, int>& pt) { return pt.second == 1; })->first;
 		cv::KeyPoint middle = std::find_if(points.begin(), points.end(), [](const std::pair<cv::KeyPoint, int>& pt) { return pt.second == 2; })->first;
 		if (pixelDist(thumb.pt.x, thumb.pt.y, index.pt.x, index.pt.y) < clickDistConst)
 			leftClick();
 		else if (pixelDist(thumb.pt.x, thumb.pt.y, middle.pt.x, middle.pt.y) < clickDistConst)
-			rightClick();
+			rightClick();*/
 
 
 		//calculate center position
@@ -38,6 +38,7 @@ bool MouseTracker::syncMousePos(const std::vector<std::pair<cv::KeyPoint, int> >
 		centerPosX = (centerPosX - fitConst < 0) ? 0 : centerPosX - fitConst;
 		centerPosY = (centerPosY - fitConst < 0) ? 0 : centerPosY - fitConst;
 		//set the cursor position
+		std::printf("the center position was updated : (%d , %d)\n", centerPosX, centerPosY);
 		SetCursorPos(centerPosX*xCoeff*speedConst, centerPosY*yCoeff*speedConst);
 	}
 	else {

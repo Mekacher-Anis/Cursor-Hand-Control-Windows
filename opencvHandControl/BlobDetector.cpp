@@ -23,35 +23,29 @@ std::vector<std::pair<cv::KeyPoint, int> > BlobDetector::detect(cv::Mat& img) {
 	{
 		for (size_t x = 0; x < img.cols; x += SEGMENTATIONCONST)
 		{
-			//cv::Vec3b& pixel = img.at<cv::Vec3b>(y, x); //the rgb values of the pixel
 			cv::Vec3b& pixel = img.at<cv::Vec3b>(y, x);
 			convertPixel2HLS(pixel, img);
-			//if (colorDif(pixel) <= COLORTHRESHOLD) {
-			//	add2Blob(x, y, newBlobs); //add pixel if it has the same color
-			//}
 			if (hasDesiredColor(pixel)) {
-				//std::printf("Found pixel at (%d , %d)\n", x, y);
 				add2Blob(x, y, newBlobs); //add pixel if it has the same color
 				pixel[0] = pixel[1] = pixel[2] = 0;
 			}
 		}
 	}
-	std::printf("found %d blobs\n", newBlobs.size());
+	//std::printf("found %d blobs\n", newBlobs.size());
 	cleanBlobs(newBlobs); //remove any small blobs
 	syncBlobs(newBlobs); //sync the old blobs with the new blobs
 	Blob::reset(); //resets the counter of blobs
-
+	
+	//convert blobs to keypoints
+	for each (Blob blob in newBlobs) {
+		points.push_back(std::make_pair(*(new cv::KeyPoint(blob.centerX, blob.centerY, MAXDISTTHRESHOLD / 75)), blob.getId()));
+	}
+	//only sync the old blobs if the new detected blobs are more than 3
 	if (points.size() >= 3) {
-		//convert blobs to keypoints
-		for each (Blob blob in newBlobs) {
-			points.push_back(std::make_pair(*(new cv::KeyPoint(blob.centerX, blob.centerY, MAXDISTTHRESHOLD / 75)), blob.getId()));
-		}
-		//only sync the old blobs if the new detected blobs are more than 3
-
 		DrawTriangle(img, points);
 		oldBlobs = std::move(newBlobs);
 	}
-
+	
 	return points;
 }
 
@@ -62,7 +56,7 @@ int BlobDetector::colorDif(const cv::Vec3b & pixel)
 	return abs((pixel[0] - B)*(pixel[0] - B) + (pixel[1] - G)*(pixel[1] - G) + (pixel[2] - R)*(pixel[2] - R));
 }
 
-void BlobDetector::convertPixel2HLS(cv::Vec3b & pixel, const cv::Mat& img)
+void BlobDetector::convertPixel2HLS(cv::Vec3b & pixel,const cv::Mat& img)
 {
 	cv::Vec3b pixelImg[1][1] = { {pixel} };
 	cv::Mat newImg(1, 1, img.type(), pixelImg);
@@ -90,14 +84,12 @@ void BlobDetector::scanSqr(cv::Mat& img, int by, int bx)
 }
 
 //returns the difference between two pixels squared
-
 int BlobDetector::pixelDist(int x1, int y1, int x2, int y2)
 {
 	return ((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2));
 }
 
-//searches for the best blob match for the selecetd pixerl based on distance
-
+//searches for the best blob match for the selecetd pixerl based on distanc
 void BlobDetector::add2Blob(int x, int y, std::vector<Blob>& blobs) {
 	//check if there are blobs already
 	if (blobs.size() != 0) {
@@ -127,12 +119,15 @@ void BlobDetector::add2Blob(int x, int y, std::vector<Blob>& blobs) {
 //function to sync old blobs IDs with the new ones
 void BlobDetector::syncBlobs(std::vector<Blob>& blobs)
 {
-	//std::printf("num of old blobs = %d num of new blobs = %d\n", oldBlobs.size(), blobs.size());
-	if (oldBlobs.size() >= 3 && blobs.size() >= 3) {
+	//when we have old blobs and more than 3 new blobs detected
+	//sync them
+	if (oldBlobs.size() >= 3 && blobs.size()>=3) {
+		//for every new blob find it's much in the old blob
 		for (std::vector<Blob>::iterator blob = blobs.begin(); blob != blobs.end(); ++blob) {
-			std::vector<Blob>::iterator selected;
-			int bestDist = 100000000;
-			for (std::vector<Blob>::iterator oldBlob = oldBlobs.begin(); oldBlob != oldBlobs.end(); ++oldBlob)
+			std::vector<Blob>::iterator selected; //holds the value of the closest much
+			int bestDist = 100000000; //holds the closest dist found to an old blob
+			//finds the closest old blob
+			for(std::vector<Blob>::iterator oldBlob = oldBlobs.begin(); oldBlob != oldBlobs.end(); ++oldBlob)
 			{
 				int dist = pixelDist(oldBlob->centerX, oldBlob->centerY, blob->centerX, blob->centerY);
 				if (dist < bestDist) {
@@ -140,6 +135,13 @@ void BlobDetector::syncBlobs(std::vector<Blob>& blobs)
 					bestDist = dist;
 				}
 			}
+			//if the blob didn't move that far there's no need to update the position
+			//gets rid of the mouse jumping around
+			if (bestDist < REFRESHDIST) {
+				blob->centerX = selected->centerX;
+				blob->centerY = selected->centerY;
+			}
+			//set the the new blob to have the same id as the old one
 			blob->setId(selected->getId());
 			oldBlobs.erase(selected);
 		}
@@ -147,16 +149,22 @@ void BlobDetector::syncBlobs(std::vector<Blob>& blobs)
 }
 
 //removes any blobs that have less the chosen number of pixels
-
 void BlobDetector::cleanBlobs(std::vector<Blob>& blobs)
 {
 	//clean any blobs that have less than requiered num of points
-	/*for (std::vector<Blob>::iterator pt = blobs.begin(); pt != blobs.end();)
+	for (std::vector<Blob>::iterator pt = blobs.begin(); pt != blobs.end();)
 		if (pt->getNum() < MINPONTSOFBLOB)
 			pt = blobs.erase(pt);
-		else ++pt;*/
+		else ++pt;
 
-		//delete the blob with least num of pixels untill u have only three
+	//delete the blos the blobs that are the furthest apart
+		for (std::vector<Blob>::iterator currentBlob = blobs.begin(); currentBlob != blobs.end();)
+			for (std::vector<Blob>::iterator blob = blobs.begin(); blob != blobs.end();)
+			/*if (pt->getNum() < MINPONTSOFBLOB)
+				pt = blobs.erase(pt);
+			else ++pt;*/
+
+	//delete the blob with least num of pixels untill u have only three
 	if (blobs.size() > 3) {
 		//sort the array so that the smallest elements will be at the end
 		std::sort(blobs.begin(), blobs.end(), [](const Blob& a, const Blob& b) {return a.getNum() > b.getNum(); });
@@ -171,18 +179,19 @@ void BlobDetector::DrawTriangle(cv::Mat & img, const std::vector<std::pair<cv::K
 	cv::Point pt[3] = { blobs[0].first.pt,blobs[1].first.pt, blobs[2].first.pt };
 	cv::fillConvexPoly(img, pt, 3, cv::Scalar(0, 150, 0));
 	for each (std::pair<cv::KeyPoint, int> blob in blobs)
-		cv::putText(img, std::to_string(blob.second), blob.first.pt, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(50, 255, 120), 5);
+		cv::putText(img, std::to_string(blob.second), blob.first.pt, cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(50, 255, 120),5);
 }
 
 bool BlobDetector::hasDesiredColor(const cv::Vec3b& pixel)
 {
-	return ((pixel[0] >= H - HUETHRESHOLD) && (pixel[0] <= H + HUETHRESHOLD) && (pixel[1] >= 10 && pixel[1] <= 250) && (pixel[2] >= S - 50));
+	return ((pixel[0] >= H - HUETHRESHOLD) && (pixel[0] <= H + HUETHRESHOLD) && (pixel[1] >= 25 && pixel[1] <= 235) && (pixel[2] >= S - 30));
 }
 
 
 int Blob::SIZETHRESHOLD = 200; //NLIU : the smallest size of blob
 int Blob::numberOfBlobs = 0; //NLIU : the total number of blobs
 
+int BlobDetector::AVRGDIST = 0;
 int BlobDetector::SEGMENTATIONCONST = 10; //the size of the grid units to scan
 int BlobDetector::COLORTHRESHOLD = 2000; //the max color diff to be considered a blob
 int BlobDetector::MAXDISTTHRESHOLD = 2000; //the max dist to consider a pixel part of blob 2000
@@ -192,9 +201,11 @@ int BlobDetector::R = -1000; //the red value of the chosen color
 int BlobDetector::G = -1000; //the green value of the chosen color
 int BlobDetector::B = -1000; //the blue value of the chosen color
 
+int BlobDetector::REFRESHDIST = 100; //the minimal new distance needed to update the blobs
+
 float BlobDetector::H = -1000; //the hue value of the chosen color
 float BlobDetector::L = -1000; // NOT REALLY NEEDED the lightness value of the chosen color
 float BlobDetector::S = -1000; // NOT REALLY NEEDED the saturation value of the chosen color
-int BlobDetector::HUETHRESHOLD = 15;
+int BlobDetector::HUETHRESHOLD = 12; //used to detect all for the ranges of the selected color
 
 std::vector<Blob> BlobDetector::oldBlobs;
